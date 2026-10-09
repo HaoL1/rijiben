@@ -92,20 +92,21 @@ export function QuickLogPage({ notify }: QuickLogPageProps) {
     session: ActiveSession | undefined,
     amount: string,
     note: string,
+    timestamp?: string,
   ) {
     if (activity.mode === 'timer') {
       if (session) {
-        const record = await stopTimer(activity.id, { amount, note })
+        const record = await stopTimer(activity.id, { amount, note, endedAt: timestamp })
         notify(`${activity.name}已结束 · ${formatDuration(record.durationSeconds ?? 0)}`, {
           label: '撤销',
           run: () => undoRecord(record.id),
         })
       } else {
-        await startTimer(activity, { amount, note })
+        await startTimer(activity, { amount, note, startedAt: timestamp })
         notify(`${activity.name}开始计时`)
       }
     } else {
-      const record = await recordInstant(activity, { amount, note })
+      const record = await recordInstant(activity, { amount, note, recordedAt: timestamp })
       notify(`已记录 ${activity.name} ${record.amount} ${record.unit}`, {
         label: '撤销',
         run: () => undoRecord(record.id),
@@ -233,12 +234,13 @@ export function QuickLogPage({ notify }: QuickLogPageProps) {
           session={activeSessions.find((session) => session.activityId === quickEntryActivity.id)}
           now={clock}
           onClose={() => setQuickEntryActivity(null)}
-          onConfirm={({ amount, note }) =>
+          onConfirm={({ amount, note, timestamp }) =>
             confirmQuickEntry(
               quickEntryActivity,
               activeSessions.find((session) => session.activityId === quickEntryActivity.id),
               amount,
               note,
+              timestamp,
             )
           }
         />

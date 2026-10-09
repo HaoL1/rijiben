@@ -1,13 +1,14 @@
 import { Clock3 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import type { ActiveSession, ActivityDefinition } from '../domain/models'
-import { formatElapsed, formatTime } from '../utils/dateTime'
+import { formatElapsed, formatTime, inputToIso, toDateTimeInput } from '../utils/dateTime'
 import { ActivityIcon } from './ActivityIcon'
 import { Modal } from './Modal'
 
 interface QuickEntryValues {
   amount: string
   note: string
+  timestamp?: string
 }
 
 interface QuickEntryModalProps {
@@ -37,6 +38,8 @@ export function QuickEntryModal({
   const defaultAmount = session?.amount ?? activity.defaultAmount
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState(session?.note ?? '')
+  const [time, setTime] = useState(() => toDateTimeInput())
+  const [timeChanged, setTimeChanged] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const isStartingTimer = activity.mode === 'timer' && !session
@@ -47,7 +50,11 @@ export function QuickEntryModal({
     setSaving(true)
     setError('')
     try {
-      await onConfirm({ amount: amount.trim() || defaultAmount, note })
+      await onConfirm({
+        amount: amount.trim() || defaultAmount,
+        note,
+        timestamp: timeChanged ? inputToIso(time) : undefined,
+      })
       onClose()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '保存失败，请重试')
@@ -59,7 +66,7 @@ export function QuickEntryModal({
   return (
     <Modal
       title={isStoppingTimer ? `结束${activity.name}` : isStartingTimer ? `开始${activity.name}` : `记录${activity.name}`}
-      description={isStoppingTimer ? '确认本次计量和备注后保存。' : '确认计量，也可以补充具体内容。'}
+      description={isStoppingTimer ? '确认结束时间、计量和备注后保存。' : '时间默认是现在，也可以修改时间直接补记。'}
       onClose={onClose}
     >
       <form className="form-stack" onSubmit={handleSubmit}>
@@ -70,7 +77,7 @@ export function QuickEntryModal({
             {session ? (
               <small><Clock3 size={14} />{formatTime(session.startedAt)} 开始 · {formatElapsed(session.startedAt, now)}</small>
             ) : (
-              <small>记录时间为现在</small>
+              <small>可修改下方时间补记</small>
             )}
           </span>
         </div>
@@ -91,6 +98,19 @@ export function QuickEntryModal({
             <input value={activity.unit} disabled />
           </label>
         </div>
+
+        <label className="field">
+          <span>{isStoppingTimer ? '结束时间' : isStartingTimer ? '开始时间' : '发生时间'}</span>
+          <input
+            type="datetime-local"
+            required
+            value={time}
+            onChange={(event) => {
+              setTime(event.target.value)
+              setTimeChanged(true)
+            }}
+          />
+        </label>
 
         <label className="field">
           <span>备注（可选）</span>
